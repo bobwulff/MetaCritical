@@ -541,7 +541,8 @@ function render(){
   if(round>=1||done){ add(yr); S.chips.push(yr); }
   if(round>=2||done){ add(game.c); S.chips.push(game.c); }
   if(S.chips.length<prev){ chipAnim=[]; chipHold=0; winArt=null; }
-  if(S.chips.length>prev && !reduced){                   // new clue(s): play them one after another
+  // New clue(s) mid-game play one after another. Clues revealed by the game ending just appear in place.
+  if(S.chips.length>prev && !reduced && !done){
     let t=Math.max(performance.now(), chipHold);
     for(let i=prev;i<S.chips.length;i++){ chipAnim[i]=t; t+=CHIP_T.total; }
     chipHold=t; crtDraw();
