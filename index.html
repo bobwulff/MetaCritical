@@ -494,10 +494,10 @@ function paintTerminal(){
       sx.shadowColor='rgba(0,0,0,.95)'; sx.shadowBlur=px(12); sx.shadowOffsetX=off; sx.fillStyle='#000';   // blur strength
       lines.forEach((l,i)=>{ const y=by+px(13)+lh*(i+.5); for(let n=0;n<3;n++) sx.fillText(l,W/2-off,y); });
       sx.shadowBlur=0; sx.shadowOffsetX=0; sx.shadowColor='transparent'; sx.textAlign='left'; sx.textBaseline='top'; }
-    sx.font=`${px(13)}px Tiny5, monospace`; sx.fillStyle=C.y; sx.textAlign='center'; sx.textBaseline='top';
+    sx.font=`${px(22)}px "Jersey 25", Tiny5, monospace`; sx.fillStyle=C.y; sx.textAlign='center'; sx.textBaseline='top';
     // label with a hard drop shadow, like the button text
     sx.shadowColor='rgba(0,0,0,.7)'; sx.shadowBlur=0; sx.shadowOffsetX=px(2); sx.shadowOffsetY=px(2);
-    sx.fillText('HINT: GAME TITLE AND BOX ART BLUR', W/2, by-px(26));
+    sx.fillText('HINT: GAME TITLE AND BOX ART BLUR', W/2, by-px(30));
     sx.shadowColor='transparent'; sx.shadowOffsetX=0; sx.shadowOffsetY=0; sx.textAlign='left';
   }
   // Draws something at a fraction of full size into a scratch canvas, then scales it back up smoothly: a blur
