@@ -426,8 +426,17 @@ function paintTerminal(){
       sx.drawImage(img, P.x+(P.w-dw)/2, P.y+(P.h-dh)/2, dw, dh);
     }
   }
+  // Game-over title banner: a big clue chip that zips across the middle of the screen, right to left.
+  if(banner){
+    const e=now-banner.start;
+    if(e>=0 && e<banner.dur){
+      const f=px(BANNER_FS); sx.font=`${f}px Tiny5, monospace`;
+      const w=sx.measureText(banner.t).width+px(36), h=px(BANNER_FS*1.75), k=e/banner.dur;
+      drawChip({x:W-(W+w)*k, y:(W-h)/2, w, h, t:banner.t, lines:[banner.t], solid:true}, f);
+    }
+  }
   function drawChip(r,f){
-    sx.fillStyle=C.chip; sx.fillRect(r.x,r.y,r.w,r.h);
+    sx.fillStyle=r.solid?'#c5c5c5':C.chip; sx.fillRect(r.x,r.y,r.w,r.h);   // solid = same look as a chip, but hides what's behind
     // Center the visible letters themselves (the font's spacing box sits off-center).
     sx.font=`${f}px Tiny5, monospace`; sx.textBaseline='alphabetic'; sx.textAlign='left'; sx.fillStyle=C.chipInk;
     const lines=r.lines||[r.t], lh=f*1.15;
@@ -445,12 +454,12 @@ const easeOut=t=>1-Math.pow(1-t,3), easeInOut=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,
 
 // ---------- CRT-Geom style pass ----------
 // Barrel curvature, rounded corners, gaussian scanlines, aperture-grille mask, phosphor glow and vignette.
-const crt=$('crt'); let gl=null, prog, texture, uRes, uLines;
+const crt=$('crt'); let gl=null, prog, texture, uRes, uLines, uScan, uGlow, uMask;
 try{
   gl=crt.getContext('webgl',{premultipliedAlpha:false,antialias:false});
   const vs=`attribute vec2 p; varying vec2 uv; void main(){ uv=p*.5+.5; uv.y=1.-uv.y; gl_Position=vec4(p,0.,1.); }`;
   const fs=`precision mediump float;
-uniform sampler2D tex; uniform vec2 res; uniform float lines; varying vec2 uv;
+uniform sampler2D tex; uniform vec2 res; uniform float lines; uniform float scanAmt; uniform float glowAmt; uniform float maskAmt; varying vec2 uv;
 const float CURV=4.6; const float CORNER=0.025;
 vec2 warp(vec2 p){ p=p*2.-1.; p*=vec2(1.+(p.y*p.y)/(CURV*CURV*2.6),1.+(p.x*p.x)/(CURV*CURV*2.)); return p*.5+.5; }
 vec3 px(vec2 q){ return texture2D(tex,q).rgb; }
@@ -466,9 +475,9 @@ void main(){
   float w=.4+.2*l;
   vec3 col=soft*exp(-(f*f)/(2.*w*w)) + b*exp(-((f+1.)*(f+1.))/(2.*w*w))*.5 + c*exp(-((f-1.)*(f-1.))/(2.*w*w))*.5;
   vec3 glow=vec3(0.); for(int i=-3;i<=3;i++){ for(int j=-3;j<=3;j++){ glow+=px(q+vec2(float(i),float(j))*vec2(3.)/res); } } glow/=49.;
-  col=mix(soft*.85,col,.5);   // scanline strength: 0 = none, 1 = full
-  col=1.-exp(-(col*1.35+glow*.25)*1.9);
-  float m=mod(gl_FragCoord.x,3.); vec3 mask=m<1.?vec3(1.,.86,.86):m<2.?vec3(.86,1.,.86):vec3(.86,.86,1.);
+  col=mix(soft*.85,col,scanAmt);   // scanline strength: 0 = none, 1 = full
+  col=1.-exp(-(col*1.35+glow*glowAmt)*1.9);
+  float m=mod(gl_FragCoord.x,3.); float lo=1.-maskAmt; vec3 mask=m<1.?vec3(1.,lo,lo):m<2.?vec3(lo,1.,lo):vec3(lo,lo,1.);
   col*=mask;
   float vig=pow(16.*q.x*q.y*(1.-q.x)*(1.-q.y),.1);
   col=col*vig+vec3(.006,.007,.009)*vig;
@@ -484,6 +493,7 @@ void main(){
   [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T].forEach(p=>gl.texParameteri(gl.TEXTURE_2D,p,gl.CLAMP_TO_EDGE));
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   uRes=gl.getUniformLocation(prog,'res'); uLines=gl.getUniformLocation(prog,'lines');
+  uScan=gl.getUniformLocation(prog,'scanAmt'); uGlow=gl.getUniformLocation(prog,'glowAmt'); uMask=gl.getUniformLocation(prog,'maskAmt');
 }catch(e){ gl=null; }
 
 let crtQueued=false;
@@ -497,7 +507,10 @@ function crtFrame(){
   gl.bindTexture(gl.TEXTURE_2D,texture);
   try{ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src); }
   catch(e){ winArt=null; paintTerminal(); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src); }  // blocked cover: drop it, keep the screen
+  // Phones: the screen is small, so tone the scanlines, glow and color mask down to keep text readable.
+  const small = css < 560;
   gl.uniform2f(uRes,W,W); gl.uniform1f(uLines,Math.round(css/2.2));
+  gl.uniform1f(uScan, small ? .22 : .5); gl.uniform1f(uGlow, small ? .08 : .25); gl.uniform1f(uMask, small ? .06 : .14);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   if(performance.now()<chipHold) crtDraw();             // keep animating
 }
@@ -540,7 +553,7 @@ function render(){
 
 function newGame(){
   game=pickGame(); round=0; done=false; won=false; deaths=0;
-  lastClose=false; view=0; winArt=null; artReq++;
+  lastClose=false; view=0; winArt=null; artReq++; banner=null;
   punchIn();
   $('fill').classList.add('instant'); requestAnimationFrame(()=>requestAnimationFrame(()=>$('fill').classList.remove('instant')));
   $('history').innerHTML=''; $('sources').hidden=true; $('guess').value=''; hideSuggest();
@@ -571,6 +584,18 @@ function guess(raw){
 
 // Box art lives next to the page as art/<OpenCritic id>.jpg. If a cover is missing, the win just skips it.
 let winArt=null, artReq=0;
+// Title banner: queued after any clue chips, before the cover. Crosses the screen at a fixed speed.
+const BANNER_FS=26, BANNER_SPEED=1.1;   // banner speed: screen-widths per second
+let banner=null;
+function showBanner(){
+  if(reduced) return;
+  const k=src.width/(($('viewer').clientWidth)||400);
+  sx.font=`${BANNER_FS*k}px Tiny5, monospace`;
+  const W=src.width, w=sx.measureText(game.t).width+36*k;
+  const dur=(W+w)/(W*BANNER_SPEED)*1000;
+  const start=Math.max(performance.now(), chipHold);
+  banner={t:game.t,start,dur}; chipHold=start+dur; crtDraw();
+}
 function showWinArt(){
   const id=++artReq, img=new Image();
   img.onload=()=>{ if(id!==artReq) return;
@@ -592,6 +617,7 @@ function finish(w){
   src.hidden=false;
   render(); if(typeAll) typeAll();
   $('go').focus();
+  showBanner();
   if(w){ if(deaths===0) missiles(); else confetti(); showWinArt(); }
   else { gameOver(); showWinArt(); }   // the cover is revealed on a loss too
 }
