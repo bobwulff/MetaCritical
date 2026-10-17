@@ -17,6 +17,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://bobwulff.github.io/MetaCritical/sharePreview.jpg">
 <link rel="canonical" href="https://bobwulff.github.io/MetaCritical/">
+<link rel="icon" type="image/png" sizes="100x100" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Meta Critical</title>
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -68,6 +70,7 @@ h1 .beta{position:absolute;right:0;bottom:calc(100% - .55em);z-index:1;font-fami
 .deaths .fill span{padding-left:12px}
 .deaths .fill.instant{transition:none}
 .deaths .fill.close{background:var(--yellow)}
+.deaths .hintseg{position:absolute;top:0;bottom:0;left:calc(200% / 3);right:0;background:var(--yellow);border-left:2px solid var(--divider)}   /* last segment turns yellow once the hint is used */
 .deaths .segs{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);z-index:2}
 .deaths .segs button{height:auto;background:transparent;border:0;padding:0;cursor:pointer;text-shadow:none}
 .deaths .segs button:disabled{cursor:default}
@@ -97,6 +100,7 @@ h1 .beta{position:absolute;right:0;bottom:calc(100% - .55em);z-index:1;font-fami
 button{height:48px;border:0;cursor:pointer;font-family:var(--button);font-size:18px;color:var(--fg);text-shadow:2px 2px 0 rgba(0,0,0,.45)}
 button.skip{background:var(--pink)}
 button.skip.back{background:var(--track)}
+button.go.hint{background:var(--yellow)}
 /* The visible (i) is drawn on the CRT canvas so it sits under the scanlines; this is its invisible click target. */
 .info{position:absolute;top:21px;right:21px;z-index:3;width:30px;height:30px;padding:0;border-radius:50%;border:0;background:transparent;color:transparent;font-size:0;text-shadow:none}
 .about{position:absolute;inset:0;z-index:4;background:rgba(25,25,25,.96);color:var(--fg);padding:26px 24px 20px;overflow:auto;cursor:default;font-family:"Jersey 25",Tiny5,monospace;font-size:clamp(17px,4.6vw,22px);line-height:1.2;display:flex;flex-direction:column;gap:.75em}
@@ -165,7 +169,7 @@ footer{margin-top:auto;padding-block:24px;font-family:var(--pixel);font-size:12p
   </div>
 
   <div class="controls gut">
-    <div class="deaths" id="deaths" aria-label="Deaths"><i></i><i></i><i></i><span class="zero" id="zero">0 DEATHS</span><div class="fill" id="fill"></div><div class="segs" id="segs"><button type="button" aria-label="Show review 1"></button><button type="button" aria-label="Show review 2"></button><button type="button" aria-label="Show review 3"></button></div></div>
+    <div class="deaths" id="deaths" aria-label="Deaths"><i></i><i></i><i></i><span class="zero" id="zero">0 DEATHS</span><div class="hintseg" id="hintseg" hidden></div><div class="fill" id="fill"></div><div class="segs" id="segs"><button type="button" aria-label="Show review 1"></button><button type="button" aria-label="Show review 2"></button><button type="button" aria-label="Show review 3"></button></div></div>
 
     <form class="entry" id="guessForm" autocomplete="off">
       <input id="guess" placeholder="Name the game..." aria-label="Your guess">
@@ -273,6 +277,7 @@ function showReview(){
 }
 $('viewer').addEventListener('click',e=>{
   if(e.target.closest('.info,.report,.about')) return;
+  if(hintOn){ hintOn=false; render(); crtDraw(); return; }
   if(typeAll){ typeAll(); return; }
   // After the cover has landed: tap it to show it full screen again, tap anywhere to shrink it back.
   const now=performance.now();
@@ -468,6 +473,37 @@ function paintTerminal(){
       drawChip({x:W-(W+w)*k, y:(W-h)/2, w, h, t:banner.t, lines:[banner.t], solid:true}, f);
     }
   }
+  // Final-round hint: the cover, heavily blurred, with the title on a chip, blurred just enough
+  // that you can count the letters but not read them.
+  if(hintOn && !done){
+    sx.fillStyle='#191919'; sx.fillRect(0,0,W,W);
+    const img=hintImg;
+    if(img && img.naturalWidth){
+      const s=Math.min(W/img.naturalWidth, W/img.naturalHeight), dw=img.naturalWidth*s, dh=img.naturalHeight*s;
+      blurInto(W, (c,cw)=>{ const k2=cw/W; c.drawImage(img,(W-dw)/2*k2,(W-dh)/2*k2,dw*k2,dh*k2); }, 1/40);
+    }
+    // title chip
+    const f=px(26), lh=f*1.25; sx.font=`${f}px Tiny5, monospace`;
+    const words=game.t.split(' '), lines=[]; let cur='';
+    for(const w of words){ const t=cur?cur+' '+w:w; if(sx.measureText(t).width>W-px(80) && cur){ lines.push(cur); cur=w; } else cur=t; }
+    if(cur) lines.push(cur);
+    const tw=Math.max(...lines.map(l=>sx.measureText(l).width)), bw=tw+px(40), bh=lines.length*lh+px(26), bx=(W-bw)/2, by=(W-bh)/2;
+    sx.fillStyle='#c5c5c5'; sx.fillRect(bx,by,bw,bh);
+    // the real title, blurred the same way as hidden names in the reviews: shapes and length show, not the letters
+    { const off=W*2; sx.font=`${f}px Tiny5, monospace`; sx.textBaseline='middle'; sx.textAlign='center';
+      sx.shadowColor='rgba(0,0,0,.95)'; sx.shadowBlur=px(12); sx.shadowOffsetX=off; sx.fillStyle='#000';   // blur strength
+      lines.forEach((l,i)=>{ const y=by+px(13)+lh*(i+.5); for(let n=0;n<3;n++) sx.fillText(l,W/2-off,y); });
+      sx.shadowBlur=0; sx.shadowOffsetX=0; sx.shadowColor='transparent'; sx.textAlign='left'; sx.textBaseline='top'; }
+    sx.font=`${px(13)}px Tiny5, monospace`; sx.fillStyle=C.y; sx.textAlign='center'; sx.textBaseline='top';
+    sx.fillText('HINT', W/2, by-px(26)); sx.textAlign='left';
+  }
+  // Draws something at a fraction of full size into a scratch canvas, then scales it back up smoothly: a blur
+  // that works in every browser (canvas blur filters don't in Safari).
+  function blurInto(W, draw, scale){
+    const cw=Math.max(2,Math.round(W*scale)); blurC.width=cw; blurC.height=cw;
+    const c=blurC.getContext('2d'); c.clearRect(0,0,cw,cw); draw(c,cw);
+    sx.imageSmoothingEnabled=true; sx.imageSmoothingQuality='high'; sx.drawImage(blurC,0,0,cw,cw,0,0,W,W);
+  }
   function drawChip(r,f){
     sx.fillStyle=r.solid?'#c5c5c5':C.chip; sx.fillRect(r.x,r.y,r.w,r.h);   // solid = same look as a chip, but hides what's behind
     // Center the visible letters themselves (the font's spacing box sits off-center).
@@ -560,7 +596,7 @@ function render(){
   if((round>=2||done) && game.p){ add(game.p); S.chips.push(game.p); }
   if(S.chips.length<prev){ chipAnim=[]; chipHold=0; winArt=null; }
   // New clue(s) mid-game play one after another. Clues revealed by the game ending just appear in place.
-  if(S.chips.length>prev && !reduced && !done && round>0){
+  if(S.chips.length>prev && !reduced && !done){
     let t=Math.max(performance.now(), chipHold);
     for(let i=prev;i<S.chips.length;i++){ chipAnim[i]=t; t+=CHIP_T.total; }
     chipHold=t; crtDraw();
@@ -584,15 +620,19 @@ function render(){
   const back = !done && view<round;
   $('skip').textContent = back ? 'NEXT' : 'SKIP';
   $('skip').classList.toggle('back', back);
-  $('go').textContent = done ? 'NEXT' : 'GUESS';
+  $('hintseg').hidden = !hintUsed;
+  if(!isHintTime()) hintOn=false;
+  if(isHintTime() && hintFor!==game.id){ hintFor=game.id; hintImg=null; const g=game; loadCover(g, img=>{ if(game===g){ hintImg=img; crtDraw(); } }); }
+  updateGo();
 }
 
 function newGame(){
   game=pickGame(); round=0; done=false; won=false; deaths=0;
-  lastClose=false; view=0; winArt=null; artReq++; banner=null; artRest=null;
+  lastClose=false; view=0; winArt=null; artReq++; banner=null; artRest=null; hintOn=false; hintUsed=false; hintImg=null; hintFor=0;
   punchIn();
   $('fill').classList.add('instant'); requestAnimationFrame(()=>requestAnimationFrame(()=>$('fill').classList.remove('instant')));
   $('history').innerHTML=''; $('sources').hidden=true; $('guess').value=''; hideSuggest();
+  S.chips=[]; chipAnim=[]; chipHold=0;   // fresh game: the year clue plays full screen before the first review types
   render(); showReview();
 }
 
@@ -635,6 +675,16 @@ function showBanner(){
 // Cover timing (slower than the chips). It starts together with the title banner.
 const ART_T={in:600,hold:2200,out:800,zoom:450}; ART_T.total=ART_T.in+ART_T.hold+ART_T.out;
 let artRest=null;
+// ---------- Final-round hint ----------
+let hintOn=false, hintUsed=false, hintImg=null, hintFor=0;
+const blurC=document.createElement('canvas');
+function loadCover(g, cb){
+  const img=new Image();
+  img.onload=()=>cb(img);
+  img.onerror=()=>{ if(!g.b || img.crossOrigin) return; img.crossOrigin='anonymous'; img.src=g.b; };
+  img.src='art/'+g.id+'.jpg';
+}
+function isHintTime(){ return !done && round===ROUNDS-1 && view===round; }
 function showWinArt(){
   const id=++artReq, img=new Image();
   img.onload=()=>{ if(id!==artReq) return;
@@ -759,7 +809,19 @@ $('guess').addEventListener('keydown',e=>{
   else if(e.key==='Escape') hideSuggest();
 });
 $('guessForm').addEventListener('submit',e=>{e.preventDefault();guess($('guess').value);});
-$('go').onclick=()=>{ if(done){ confettiRun++; $('confetti').hidden=true; newGame(); } else guess($('guess').value); };
+// On the last review, GUESS becomes a yellow HINT? button while the guess box is empty.
+function hintButton(){ return isHintTime() && !$('guess').value.trim(); }
+function updateGo(){
+  const h=!done && hintButton();
+  $('go').textContent = done ? 'NEXT' : h ? (hintOn ? 'REVIEW' : 'HINT?') : 'GUESS';
+  $('go').classList.toggle('hint', h);
+}
+$('guess').addEventListener('input',updateGo);
+$('go').onclick=()=>{
+  if(done){ confettiRun++; $('confetti').hidden=true; newGame(); return; }
+  if(hintButton()){ hintOn=!hintOn; hintUsed=true; if(typeAll) typeAll(); render(); crtDraw(); return; }
+  guess($('guess').value);
+};
 $('segs').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b||b.disabled) return;
   goToReview([...$('segs').children].indexOf(b));
@@ -836,10 +898,11 @@ function gamesFromSheet(text){
   const get=(r,n)=>{ const i=col(n); return i<0 ? '' : String(r[i]||'').trim(); };
   const ORDER={lowest:0,highest:1,ign:2,random:2}, byId=new Map(), builtIn=new Map(GAMES.map(g=>[g.id,g]));
   for(const r of rows){ const id=parseInt(get(r,'opencritic_id'),10); if(!id) continue;
-    if(!byId.has(id)) byId.set(id,{r,rev:[]});
+    if(!byId.has(id)) byId.set(id,{r,rev:[],all:[]});
+    byId.get(id).all.push(r);
     if(get(r,'pick') in ORDER) byId.get(id).rev.push(r); }
   const out=[], seen=new Set();
-  for(const [id,{r,rev}] of byId){
+  for(const [id,{r,rev,all}] of byId){
     if(rev.length<3) continue;                                     // skip a game whose rows look wrong
     const t=get(r,'game'), b=baseTitle(t), key=norm(b);
     if(!t || seen.has(key)) continue; seen.add(key);
@@ -851,7 +914,8 @@ function gamesFromSheet(text){
     a.delete(t);
     const g={t, y:parseInt(get(r,'year_clue')||get(r,'year'),10)||'', c:get(r,'platform_clue')||get(r,'platforms'), id, a:[...a], b:get(r,'box_art_url'), r:reviews};
     if(/^true$/i.test(get(r,'rerelease'))) g.rr=true;
-    const pub=get(r,'publisher'); if(pub) g.p = /^(true|yes|1)$/i.test(get(r,'publisher_indie')) ? `${pub} (INDIE)` : pub;
+    // publisher: from whichever of the game's rows has one filled in
+    const pub=all.map(x=>get(x,'publisher')).find(Boolean); if(pub) g.p = pub;
     out.push(g);
   }
   return out;
