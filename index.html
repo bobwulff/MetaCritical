@@ -593,7 +593,7 @@ function finish(w){
   render(); if(typeAll) typeAll();
   $('go').focus();
   if(w){ if(deaths===0) missiles(); else confetti(); showWinArt(); }
-  else gameOver();
+  else { gameOver(); showWinArt(); }   // the cover is revealed on a loss too
 }
 
 // Pixel confetti: same-size bright squares fire in from both sides, then fall.
