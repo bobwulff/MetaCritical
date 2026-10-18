@@ -135,6 +135,11 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
 .sources a:hover,.sources a:focus-visible{color:var(--fg)}
 .sources .g{color:var(--green)} .sources .y{color:var(--yellow)} .sources .p{color:var(--pink)}
 footer{margin-top:auto;padding-block:24px;font-family:var(--pixel);font-size:12px;color:var(--muted);letter-spacing:.03em;line-height:1.5}
+footer a{color:inherit}
+footer p{margin:0}
+footer .more{margin-bottom:14px;font-family:var(--pixel);font-size:15px;line-height:1.6;color:var(--fg);letter-spacing:.03em}
+footer .more a{font-family:var(--button);font-size:10px;letter-spacing:0;color:var(--green);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:2px}
+footer .more a:hover,footer .more a:focus-visible{color:var(--fg)}
 </style>
 </head>
 <body>
@@ -188,7 +193,7 @@ footer{margin-top:auto;padding-block:24px;font-family:var(--pixel);font-size:12p
 
   <canvas id="confetti" hidden></canvas>
   <div class="flash" id="flash" aria-hidden="true"></div>
-  <footer class="gut">Reviews pulled from <a href="https://opencritic.com" target="_blank" rel="noopener">OpenCritic</a>. Platform data from <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a>. Designed by Bob Wulff, coded by Claude.</footer>
+  <footer class="gut"><p class="more">Wanna play another game? Check out <a href="https://bobwulff.github.io/BoxArtZoom/" target="_blank" rel="noopener">BOX ART ZOOM</a></p><p>Reviews pulled from <a href="https://opencritic.com" target="_blank" rel="noopener">OpenCritic</a>. Platform data from <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a>. Designed by Bob Wulff, coded by Claude.</p></footer>
 </div>
 
 <script>
