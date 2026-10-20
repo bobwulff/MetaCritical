@@ -232,6 +232,62 @@ const scoreClass = (v,max) => { const x = max===10 ? v : v/10; return x>=7.5 ? '
 const ROUNDS = 3;
 const $ = id => document.getElementById(id);
 const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/^the\s+/,'').replace(/[^a-z0-9]/g,'');
+// DLC, expansions and add-ons (by OpenCritic id): never picked. A Sheet column named "exclude" (or "dlc")
+// set to TRUE on any of a game's rows does the same for anything not on this list.
+const DLC = new Set([
+  16525, // Elden Ring: Shadow of the Erdtree
+  12550, // Dead Cells: The Queen & the Sea
+  14387, // Dead Cells: Return to Castlevania
+  11626, // FFXIV: Endwalker
+  7836,  // FFXIV: Shadowbringers
+  3939,  // FFXIV: Stormblood
+  17574, // Vampire Survivors: Ode to Castlevania
+  16688, // Vampire Survivors: Operation Guns
+  2704,  // Witcher 3: Blood and Wine
+  1827,  // Witcher 3: Hearts of Stone
+  20627, // Dave the Diver: In the Jungle
+  16054, // Destiny 2: The Final Shape
+  12451, // Destiny 2: The Witch Queen
+  14872, // Xenoblade Chronicles 3: Future Redeemed
+  7898,  // Monster Hunter World: Iceborne
+  20955, // DOOM: The Dark Ages | Revelations
+  16982, // The Talos Principle 2: Road to Elysium
+  13539, // Hearthstone: Murder at Castle Nathria
+  1876,  // Hearthstone: The Grand Tournament
+  2024,  // Hearthstone: The League of Explorers
+  1059,  // Mario Kart 8 DLC Pack 2
+  1061,  // Mario Kart 8 DLC Pack 1
+  1947,  // Tales from the Borderlands: Episode Five
+  4008,  // Shovel Knight: Specter of Torment
+  15196, // Cyberpunk 2077: Phantom Liberty
+  15981, // God of War Ragnarok: Valhalla
+  17452, // Rogue Trader - Void Shadows
+  13323, // Cuphead: The Delicious Last Course
+  4495,  // XCOM 2: War of the Chosen
+  21143, // Pokémon Pokopia Expansion Pass - Part 1
+  1983,  // The Binding of Isaac: Afterbirth
+  11030, // Moving Out: Movers in Paradise
+  14070, // Two Point Campus: Space Academy
+  18581, // Sea of Stars: Throes of the Watchmaker
+  8753,  // ETS2 - Road to the Black Sea
+  6970,  // ETS2 - Beyond the Baltic Sea
+  6724,  // American Truck Simulator - Oregon
+  1828,  // StarCraft II: Legacy of the Void
+  536,   // Diablo III: Reaper of Souls
+  13246, // OlliOlli World: VOID Riders
+  1645,  // Company of Heroes 2: The British Forces
+  19668, // Kingdom Come: Deliverance 2 - Mysteria Ecclesia
+  20374, // Dying Light: The Beast Restored Land
+  11688, // Streets of Rage 4: Mr. X Nightmare
+  15544, // Resident Evil 4: Separate Ways
+  19962, // Cult of the Lamb: Woolhaven
+  1890,  // Bloodborne: The Old Hunters
+  506,   // World of Warcraft: Warlords of Draenor
+  2859,  // World of Warcraft: Legion
+  223,   // ZEN Pinball 2: The Walking Dead
+  20256, // Super Mario Bros. Wonder - NS2 Edition + Meetup in Bellabel Park
+]);
+GAMES = GAMES.filter(g=>!DLC.has(g.id));
 let titles = [...new Set([...GAMES.map(g=>g.t), ...DECOYS])].sort((a,b)=>a.localeCompare(b));
 const accepts = g => { const s=new Set([g.t,...(g.a||[])].map(norm)); const i=g.t.indexOf(':'); if(i>0) s.add(norm(g.t.slice(i+1))); return s; };
 
@@ -912,6 +968,10 @@ function gamesFromSheet(text){
   const out=[], seen=new Set();
   for(const [id,{r,rev,all}] of byId){
     if(rev.length<3) continue;                                     // skip a game whose rows look wrong
+    if(DLC.has(id)) continue;                                      // DLC / expansions
+    if(all.some(x=>/^(true|yes|1)$/i.test(get(x,'exclude')||get(x,'dlc')))) continue;   // marked in the Sheet
+    // Reported games sit out until their reports are removed from Form Responses 1 (the count goes back to 0)
+    if(all.some(x=>(parseFloat(get(x,'reports'))||0)>0)) continue;
     const t=get(r,'game'), b=baseTitle(t), key=norm(b);
     if(!t || seen.has(key)) continue; seen.add(key);
     rev.sort((x,y)=>ORDER[get(x,'pick')]-ORDER[get(y,'pick')]);
